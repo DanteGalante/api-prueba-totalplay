@@ -1,0 +1,47 @@
+services:
+  oracle:
+    image: container-registry.oracle.com/database/free
+    container_name: oracle-db
+    ports:
+      - "1521:1521"
+    environment:
+      - ORACLE_PWD=oracle1234
+      - ORACLE_ALLOW_REMOTE=true
+      - ORACLE_DISABLE_ASYNCH_IO=true
+    volumes:
+      # - ./scripts/db-init.sql:/docker-entrypoint-initdb.d/db-init.sql
+      - ./scripts/db-init.sql:/opt/oracle/scripts/startup/db-init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "echo 'SELECT 1 FROM dual;' | sqlplus sys/oracle1234@//localhost:1521/free as sysdba"]
+      interval: 3s
+      timeout: 60s
+      retries: 10
+
+  app:
+    image: danjov99/tpsprng:latest
+    ports:
+      - "8080:8080"
+    depends_on:
+      oracle:
+        condition: service_healthy
+    # volumes:
+    #   - ./wait-for-it.sh:/wait-for-it.sh
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:oracle:thin:@//oracle:1521/free
+      - SPRING_DATASOURCE_USERNAME=C##totalplay_prueba
+      - SPRING_DATASOURCE_PASSWORD=total_play123
+      - SPRING_DATASOURCE_DRIVER_CLASS_NAME=oracle.jdbc.OracleDriver
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=none
+      - SPRING_JPA_SHOW_SQL=true
+      - CLOUD_AWS_CREDENTIALS_ACCESS_KEY=${AWS_ACCESS_KEY_ID}
+      - CLOUD_AWS_CREDENTIALS_SECRET_KEY=${AWS_SECRET_ACCESS_KEY}
+      - CLOUD_AWS_REGION_STATIC=us-east-2
+      - CLOUD_AWS_S3_BUCKET=prueba-foto-personal
+    env_file:
+      - .env
+    # entrypoint: [
+    #   "./wait-for-it.sh", 
+    #   "oracle-db:1521", 
+    #   "--timeout=60", 
+    #   "--", "java", "-jar", "app.jar"
+    # ]
